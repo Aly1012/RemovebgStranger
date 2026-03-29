@@ -4,70 +4,81 @@ import UploadZone from '@/components/UploadZone'
 import ImageEditor from '@/components/ImageEditor'
 import ResultPanel from '@/components/ResultPanel'
 
-export type Person = {
-  id: number
-  mask: number[][]   // 二维 0/1 掩码，与原图同宽高
-  bbox: [number, number, number, number]  // x1,y1,x2,y2 (归一化 0-1)
-  selected: boolean
-}
+export type Stage = 'upload' | 'paint' | 'result'
 
-export type Stage = 'upload' | 'select' | 'result'
+const S = {
+  header: {
+    background: '#fff',
+    borderBottom: '1px solid #eaecf0',
+    position: 'sticky' as const,
+    top: 0,
+    zIndex: 10,
+  },
+  headerInner: {
+    maxWidth: 960,
+    margin: '0 auto',
+    padding: '0 24px',
+    height: 60,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  logo: { display: 'flex', alignItems: 'center', gap: 10 },
+  logoIcon: {
+    width: 34, height: 34,
+    background: 'linear-gradient(135deg, #2563eb, #4f46e5)',
+    borderRadius: 10,
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+  },
+  logoText: { fontSize: 17, fontWeight: 700, color: '#111', letterSpacing: -0.3 },
+  steps: { display: 'flex', alignItems: 'center', gap: 4 },
+  content: { maxWidth: 960, margin: '0 auto', padding: '0 24px' },
+  error: {
+    background: '#fef2f2',
+    border: '1px solid #fecaca',
+    color: '#dc2626',
+    borderRadius: 12,
+    padding: '12px 16px',
+    fontSize: 14,
+    marginBottom: 16,
+    display: 'flex',
+    alignItems: 'center',
+    gap: 8,
+  },
+  footer: {
+    textAlign: 'center' as const,
+    padding: '24px',
+    fontSize: 12,
+    color: '#aaa',
+    borderTop: '1px solid #f0f0f0',
+    marginTop: 40,
+  },
+}
 
 export default function Home() {
   const [stage, setStage] = useState<Stage>('upload')
   const [imageFile, setImageFile] = useState<File | null>(null)
   const [imageUrl, setImageUrl] = useState<string>('')
-  const [imageSize, setImageSize] = useState<{ w: number; h: number }>({ w: 0, h: 0 })
-  const [persons, setPersons] = useState<Person[]>([])
   const [resultUrl, setResultUrl] = useState<string>('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string>('')
 
-  const handleUpload = useCallback(async (file: File) => {
+  const handleUpload = useCallback((file: File) => {
     setError('')
     setImageFile(file)
     const url = URL.createObjectURL(file)
     setImageUrl(url)
-
-    // 获取图片尺寸
-    const img = new Image()
-    img.onload = () => setImageSize({ w: img.naturalWidth, h: img.naturalHeight })
-    img.src = url
-
-    // 调用检测API
-    setLoading(true)
-    try {
-      const form = new FormData()
-      form.append('image', file)
-      const res = await fetch('/api/detect', { method: 'POST', body: form })
-      if (!res.ok) throw new Error(await res.text())
-      const data = await res.json()
-      const detected: Person[] = (data.persons as Omit<Person, 'selected'>[]).map(p => ({
-        ...p,
-        selected: false,
-      }))
-      setPersons(detected)
-      setStage('select')
-    } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : '检测失败，请重试')
-    } finally {
-      setLoading(false)
-    }
+    setStage('paint')
   }, [])
 
-  const togglePerson = (id: number) => {
-    setPersons(ps => ps.map(p => p.id === id ? { ...p, selected: !p.selected } : p))
-  }
-
-  const handleRemove = async () => {
-    const selected = persons.filter(p => p.selected)
-    if (!selected.length) { setError('请先选择要去除的人物'); return }
+  const handleRemove = async (maskDataUrl: string) => {
+    if (!imageFile) return
     setError('')
     setLoading(true)
     try {
       const form = new FormData()
-      form.append('image', imageFile!)
-      form.append('ids', JSON.stringify(selected.map(p => p.id)))
+      form.append('image', imageFile)
+      form.append('mask', maskDataUrl)
       const res = await fetch('/api/remove', { method: 'POST', body: form })
       if (!res.ok) throw new Error(await res.text())
       const blob = await res.blob()
@@ -84,77 +95,78 @@ export default function Home() {
     setStage('upload')
     setImageFile(null)
     setImageUrl('')
-    setPersons([])
     setResultUrl('')
     setError('')
   }
 
+  const steps = [
+    { key: 'upload', label: '上传图片' },
+    { key: 'paint',  label: '涂抹人物' },
+    { key: 'result', label: '下载结果' },
+  ] as const
+  const stageIdx = steps.findIndex(s => s.key === stage)
+
   return (
-    <main className="min-h-screen flex flex-col">
-      {/* Header */}
-      <header className="bg-white border-b border-gray-200 px-6 py-4 flex items-center gap-3">
-        <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
-          <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-          </svg>
+    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+      <header style={S.header}>
+        <div style={S.headerInner}>
+          <div style={S.logo}>
+            <div style={S.logoIcon}>
+              <svg width="18" height="18" fill="none" stroke="white" strokeWidth="2" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round"
+                  d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+              </svg>
+            </div>
+            <span style={S.logoText}>RemovebgStranger</span>
+          </div>
+
+          <div style={S.steps}>
+            {steps.map((s, i) => (
+              <div key={s.key} style={{ display: 'flex', alignItems: 'center' }}>
+                <div style={{
+                  padding: '5px 14px',
+                  borderRadius: 100,
+                  fontSize: 13,
+                  fontWeight: 500,
+                  background: i === stageIdx ? '#2563eb' : i < stageIdx ? '#dbeafe' : 'transparent',
+                  color: i === stageIdx ? '#fff' : i < stageIdx ? '#2563eb' : '#aaa',
+                }}>
+                  {i < stageIdx ? '✓ ' : `${i + 1}. `}{s.label}
+                </div>
+                {i < steps.length - 1 && (
+                  <div style={{ width: 20, height: 1, background: i < stageIdx ? '#93c5fd' : '#e5e7eb', margin: '0 2px' }} />
+                )}
+              </div>
+            ))}
+          </div>
         </div>
-        <span className="text-xl font-bold text-gray-900">RemovebgStranger</span>
-        <span className="text-sm text-gray-400 ml-1">智能人物去除</span>
       </header>
 
-      {/* Steps */}
-      <div className="bg-white border-b border-gray-100 px-6 py-3">
-        <div className="max-w-4xl mx-auto flex items-center gap-2 text-sm">
-          {(['upload', 'select', 'result'] as Stage[]).map((s, i) => {
-            const labels = ['① 上传图片', '② 选择人物', '③ 下载结果']
-            const active = stage === s
-            const done = ['upload', 'select', 'result'].indexOf(stage) > i
-            return (
-              <span key={s} className={`px-3 py-1 rounded-full font-medium transition-colors
-                ${active ? 'bg-blue-600 text-white' : done ? 'bg-blue-100 text-blue-600' : 'text-gray-400'}`}>
-                {labels[i]}
-              </span>
-            )
-          })}
+      <div style={{ flex: 1 }}>
+        <div style={S.content}>
+          {error && (
+            <div style={S.error}>
+              <span>⚠️</span> {error}
+            </div>
+          )}
+          {stage === 'upload' && <UploadZone onUpload={handleUpload} loading={loading} />}
+          {stage === 'paint' && (
+            <ImageEditor
+              imageUrl={imageUrl}
+              onRemove={handleRemove}
+              onBack={handleReset}
+              loading={loading}
+            />
+          )}
+          {stage === 'result' && (
+            <ResultPanel originalUrl={imageUrl} resultUrl={resultUrl} onReset={handleReset} />
+          )}
         </div>
       </div>
 
-      {/* Content */}
-      <div className="flex-1 max-w-4xl mx-auto w-full px-4 py-8">
-        {error && (
-          <div className="mb-4 bg-red-50 border border-red-200 text-red-700 rounded-lg px-4 py-3 text-sm">
-            {error}
-          </div>
-        )}
-
-        {stage === 'upload' && (
-          <UploadZone onUpload={handleUpload} loading={loading} />
-        )}
-
-        {stage === 'select' && (
-          <ImageEditor
-            imageUrl={imageUrl}
-            imageSize={imageSize}
-            persons={persons}
-            onToggle={togglePerson}
-            onRemove={handleRemove}
-            onBack={handleReset}
-            loading={loading}
-          />
-        )}
-
-        {stage === 'result' && (
-          <ResultPanel
-            originalUrl={imageUrl}
-            resultUrl={resultUrl}
-            onReset={handleReset}
-          />
-        )}
-      </div>
-
-      <footer className="text-center py-4 text-xs text-gray-400">
-        图片仅在本次会话中使用，不存储于任何服务器
+      <footer style={S.footer}>
+        🔒 图片仅在本次会话中处理，不存储于任何服务器 · RemovebgStranger
       </footer>
-    </main>
+    </div>
   )
 }
