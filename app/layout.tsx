@@ -1,16 +1,19 @@
 import type { Metadata } from 'next'
 import './globals.css'
+import { LangProvider } from '@/lib/LangContext'
 
 export const metadata: Metadata = {
-  title: 'RemovebgStranger — 智能人物去除',
-  description: '上传照片，选择要去除的人物，保留真实背景',
+  title: 'RemovebgStranger — Remove People from Photos',
+  description: 'Paint over people to remove them from photos. AI fills the background automatically.',
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="zh">
       <body style={{ background: '#f7f8fa', minHeight: '100vh', margin: 0 }}>
-        {children}
+        <LangProvider>
+          {children}
+        </LangProvider>
       </body>
     </html>
   )

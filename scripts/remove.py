@@ -26,7 +26,6 @@ def main():
     mask_np = np.array(mask_pil)
     kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (20, 20))
     mask_np = cv2.dilate(mask_np, kernel, iterations=2)
-    mask_pil = Image.fromarray(mask_np, mode="L")
 
     # 超过 1200px 先缩小处理，完成后放大回原尺寸（大幅减少 CPU 处理时间）
     MAX_DIM = 1200
@@ -35,8 +34,13 @@ def main():
         scale = MAX_DIM / max(W, H)
         new_W, new_H = int(W * scale), int(H * scale)
         img = img.resize((new_W, new_H), Image.LANCZOS)
-        mask_pil = mask_pil.resize((new_W, new_H), Image.BILINEAR)
+        mask_np_small = cv2.resize(mask_np, (new_W, new_H), interpolation=cv2.INTER_LINEAR)
         W, H = new_W, new_H
+    else:
+        mask_np_small = mask_np
+
+    # 二值化 mask
+    _, mask_bin = cv2.threshold(mask_np_small, 127, 255, cv2.THRESH_BINARY)
 
     # 使用 iopaint LaMa 进行高质量 inpainting
     from iopaint.model_manager import ModelManager
@@ -51,14 +55,23 @@ def main():
         hd_strategy_crop_trigger_size=512,
         hd_strategy_resize_limit=1280,
         ldm_sampler=LDMSampler.plms,
+        sd_keep_unmasked_area=False,  # 关闭，自己手动合并背景，避免维度 bug
     )
 
-    img_np = np.array(img)                           # [H, W, 3] RGB
-    mask_np2 = np.array(mask_pil)[:, :, np.newaxis]  # [H, W, 1]
+    img_np = np.array(img)   # [H, W, 3] RGB
+    # iopaint 期望 mask 是 2D [H, W]，值 0=保留 255=修复
+    result_bgr = model_manager(img_np, mask_bin, config)  # 返回 BGR
 
-    result = model_manager(img_np, mask_np2, config)  # 返回 BGR
-    result_rgb = cv2.cvtColor(result, cv2.COLOR_BGR2RGB)
-    result_img = Image.fromarray(result_rgb)
+    # 将 inpaint 结果转回 RGB
+    result_rgb = cv2.cvtColor(result_bgr, cv2.COLOR_BGR2RGB)
+
+    # 手动合并：未涂抹区域用原图，涂抹区域用 inpaint 结果
+    img_bgr = cv2.cvtColor(img_np, cv2.COLOR_RGB2BGR)
+    mask_f = mask_bin.astype(np.float32) / 255.0          # [H, W] 0.0~1.0
+    mask_3 = mask_f[:, :, np.newaxis]                     # [H, W, 1]
+    result_rgb_merged = (result_rgb * mask_3 + img_np * (1 - mask_3)).astype(np.uint8)
+
+    result_img = Image.fromarray(result_rgb_merged)
 
     # 放大回原始尺寸
     if result_img.size != (orig_W, orig_H):

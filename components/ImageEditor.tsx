@@ -1,5 +1,6 @@
 'use client'
 import { useEffect, useRef, useState } from 'react'
+import { useLang } from '@/lib/LangContext'
 
 interface Props {
   imageUrl: string
@@ -9,13 +10,13 @@ interface Props {
 }
 
 export default function ImageEditor({ imageUrl, onRemove, onBack, loading }: Props) {
+  const { t } = useLang()
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const maskCanvasRef = useRef<HTMLCanvasElement>(null)
   const [isDrawing, setIsDrawing] = useState(false)
   const [brushSize, setBrushSize] = useState(40)
   const [hasStrokes, setHasStrokes] = useState(false)
 
-  // 初始化 canvas：绘制图片
   useEffect(() => {
     const canvas = canvasRef.current
     const maskCanvas = maskCanvasRef.current
@@ -32,7 +33,6 @@ export default function ImageEditor({ imageUrl, onRemove, onBack, loading }: Pro
       maskCanvas.width = W
       maskCanvas.height = H
       ctx.drawImage(img, 0, 0, W, H)
-      // 清空 mask canvas
       const mCtx = maskCanvas.getContext('2d')!
       mCtx.clearRect(0, 0, W, H)
       setHasStrokes(false)
@@ -65,14 +65,12 @@ export default function ImageEditor({ imageUrl, onRemove, onBack, loading }: Pro
     const ctx = canvas.getContext('2d')!
     const mCtx = maskCanvas.getContext('2d')!
 
-    // 在图片上绘制半透明红色笔迹（视觉反馈）
     ctx.globalCompositeOperation = 'source-over'
     ctx.fillStyle = 'rgba(239, 68, 68, 0.45)'
     ctx.beginPath()
     ctx.arc(x, y, brushSize / 2, 0, Math.PI * 2)
     ctx.fill()
 
-    // 在 mask canvas 上绘制纯白色（代表需要消除的区域）
     mCtx.globalCompositeOperation = 'source-over'
     mCtx.fillStyle = '#ffffff'
     mCtx.beginPath()
@@ -86,12 +84,10 @@ export default function ImageEditor({ imageUrl, onRemove, onBack, loading }: Pro
     setIsDrawing(true)
     paint(getPos(e).x, getPos(e).y)
   }
-
   const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
     if (!isDrawing) return
     paint(getPos(e).x, getPos(e).y)
   }
-
   const handleMouseUp = () => setIsDrawing(false)
 
   const handleTouchStart = (e: React.TouchEvent<HTMLCanvasElement>) => {
@@ -99,7 +95,6 @@ export default function ImageEditor({ imageUrl, onRemove, onBack, loading }: Pro
     setIsDrawing(true)
     paint(getPos(e).x, getPos(e).y)
   }
-
   const handleTouchMove = (e: React.TouchEvent<HTMLCanvasElement>) => {
     e.preventDefault()
     if (!isDrawing) return
@@ -111,7 +106,6 @@ export default function ImageEditor({ imageUrl, onRemove, onBack, loading }: Pro
     const maskCanvas = maskCanvasRef.current!
     const ctx = canvas.getContext('2d')!
     const mCtx = maskCanvas.getContext('2d')!
-    // 重绘原图
     const img = new Image()
     img.onload = () => {
       ctx.clearRect(0, 0, canvas.width, canvas.height)
@@ -124,7 +118,6 @@ export default function ImageEditor({ imageUrl, onRemove, onBack, loading }: Pro
 
   const handleSubmit = () => {
     const maskCanvas = maskCanvasRef.current!
-    // 导出 mask：黑底白色涂抹区域
     const exportCanvas = document.createElement('canvas')
     exportCanvas.width = maskCanvas.width
     exportCanvas.height = maskCanvas.height
@@ -162,12 +155,12 @@ export default function ImageEditor({ imageUrl, onRemove, onBack, loading }: Pro
           </svg>
         </div>
         <div>
-          <p style={{ fontSize: 15, fontWeight: 700, color: '#111', margin: '0 0 3px' }}>涂抹要去除的人物</p>
-          <p style={{ fontSize: 13, color: '#888', margin: 0 }}>用画笔涂抹想要消除的人物区域，涂完后点击"去除涂抹区域"</p>
+          <p style={{ fontSize: 15, fontWeight: 700, color: '#111', margin: '0 0 3px' }}>{t('paintTitle')}</p>
+          <p style={{ fontSize: 13, color: '#888', margin: 0 }}>{t('paintSubtitle')}</p>
         </div>
       </div>
 
-      {/* 画笔大小控制 */}
+      {/* 画笔大小 */}
       <div style={{
         background: '#fff',
         border: '1px solid #e5e7eb',
@@ -178,7 +171,7 @@ export default function ImageEditor({ imageUrl, onRemove, onBack, loading }: Pro
         gap: 16,
         boxShadow: '0 1px 4px rgba(0,0,0,0.04)',
       }}>
-        <span style={{ fontSize: 13, fontWeight: 600, color: '#555', whiteSpace: 'nowrap' }}>画笔大小</span>
+        <span style={{ fontSize: 13, fontWeight: 600, color: '#555', whiteSpace: 'nowrap' }}>{t('brushSize')}</span>
         <input
           type="range"
           min={10}
@@ -187,7 +180,6 @@ export default function ImageEditor({ imageUrl, onRemove, onBack, loading }: Pro
           onChange={e => setBrushSize(Number(e.target.value))}
           style={{ flex: 1, accentColor: '#2563eb' }}
         />
-        {/* 画笔预览 */}
         <div style={{
           width: brushSize > 60 ? 60 : brushSize,
           height: brushSize > 60 ? 60 : brushSize,
@@ -215,12 +207,12 @@ export default function ImageEditor({ imageUrl, onRemove, onBack, loading }: Pro
               whiteSpace: 'nowrap',
             }}
           >
-            清除重画
+            {t('clearRedraw')}
           </button>
         )}
       </div>
 
-      {/* Canvas 区域 */}
+      {/* Canvas */}
       <div style={{
         background: '#f8fafc',
         borderRadius: 20,
@@ -246,11 +238,10 @@ export default function ImageEditor({ imageUrl, onRemove, onBack, loading }: Pro
             touchAction: 'none',
           }}
         />
-        {/* 隐藏的 mask canvas */}
         <canvas ref={maskCanvasRef} style={{ display: 'none' }} />
       </div>
 
-      {/* 操作按钮 */}
+      {/* Actions */}
       <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end', paddingBottom: 8 }}>
         <button
           onClick={onBack}
@@ -266,7 +257,7 @@ export default function ImageEditor({ imageUrl, onRemove, onBack, loading }: Pro
             boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
           }}
         >
-          ← 重新上传
+          {t('backUpload')}
         </button>
         <button
           onClick={handleSubmit}
@@ -299,7 +290,7 @@ export default function ImageEditor({ imageUrl, onRemove, onBack, loading }: Pro
               animation: 'spin 0.8s linear infinite',
             }} />
           )}
-          {loading ? '处理中…' : '✨ 去除涂抹区域'}
+          {loading ? t('processing') : t('removeArea')}
         </button>
       </div>
       <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>

@@ -3,6 +3,7 @@ import { useState, useCallback } from 'react'
 import UploadZone from '@/components/UploadZone'
 import ImageEditor from '@/components/ImageEditor'
 import ResultPanel from '@/components/ResultPanel'
+import { useLang } from '@/lib/LangContext'
 
 export type Stage = 'upload' | 'paint' | 'result'
 
@@ -56,6 +57,7 @@ const S = {
 }
 
 export default function Home() {
+  const { locale, setLocale, t } = useLang()
   const [stage, setStage] = useState<Stage>('upload')
   const [imageFile, setImageFile] = useState<File | null>(null)
   const [imageUrl, setImageUrl] = useState<string>('')
@@ -85,7 +87,7 @@ export default function Home() {
       setResultUrl(URL.createObjectURL(blob))
       setStage('result')
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : '处理失败，请重试')
+      setError(e instanceof Error ? e.message : t('processFailed'))
     } finally {
       setLoading(false)
     }
@@ -100,9 +102,9 @@ export default function Home() {
   }
 
   const steps = [
-    { key: 'upload', label: '上传图片' },
-    { key: 'paint',  label: '涂抹人物' },
-    { key: 'result', label: '下载结果' },
+    { key: 'upload', label: t('step1') },
+    { key: 'paint',  label: t('step2') },
+    { key: 'result', label: t('step3') },
   ] as const
   const stageIdx = steps.findIndex(s => s.key === stage)
 
@@ -110,6 +112,7 @@ export default function Home() {
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
       <header style={S.header}>
         <div style={S.headerInner}>
+          {/* Logo */}
           <div style={S.logo}>
             <div style={S.logoIcon}>
               <svg width="18" height="18" fill="none" stroke="white" strokeWidth="2" viewBox="0 0 24 24">
@@ -117,9 +120,10 @@ export default function Home() {
                   d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
               </svg>
             </div>
-            <span style={S.logoText}>RemovebgStranger</span>
+            <span style={S.logoText}>{t('appName')}</span>
           </div>
 
+          {/* Steps */}
           <div style={S.steps}>
             {steps.map((s, i) => (
               <div key={s.key} style={{ display: 'flex', alignItems: 'center' }}>
@@ -137,6 +141,29 @@ export default function Home() {
                   <div style={{ width: 20, height: 1, background: i < stageIdx ? '#93c5fd' : '#e5e7eb', margin: '0 2px' }} />
                 )}
               </div>
+            ))}
+          </div>
+
+          {/* Language switcher */}
+          <div style={{ display: 'flex', gap: 4 }}>
+            {(['zh', 'en'] as const).map(l => (
+              <button
+                key={l}
+                onClick={() => setLocale(l)}
+                style={{
+                  padding: '5px 12px',
+                  borderRadius: 8,
+                  border: locale === l ? '1.5px solid #2563eb' : '1.5px solid #e5e7eb',
+                  background: locale === l ? '#eff6ff' : '#fff',
+                  color: locale === l ? '#2563eb' : '#888',
+                  fontSize: 13,
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  transition: 'all 0.15s',
+                }}
+              >
+                {l === 'zh' ? '中文' : 'EN'}
+              </button>
             ))}
           </div>
         </div>
@@ -165,7 +192,7 @@ export default function Home() {
       </div>
 
       <footer style={S.footer}>
-        🔒 图片仅在本次会话中处理，不存储于任何服务器 · RemovebgStranger
+        {t('footerText')}
       </footer>
     </div>
   )

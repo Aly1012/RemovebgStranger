@@ -1,5 +1,6 @@
 'use client'
 import { useCallback, useRef } from 'react'
+import { useLang } from '@/lib/LangContext'
 
 interface Props {
   onUpload: (file: File) => void
@@ -7,6 +8,7 @@ interface Props {
 }
 
 export default function UploadZone({ onUpload, loading }: Props) {
+  const { t } = useLang()
   const inputRef = useRef<HTMLInputElement>(null)
 
   const handleFile = useCallback((file: File) => {
@@ -20,15 +22,22 @@ export default function UploadZone({ onUpload, loading }: Props) {
     if (file) handleFile(file)
   }, [handleFile])
 
+  const badges = [
+    { icon: '🔒', key: 'badge1' as const },
+    { icon: '⚡', key: 'badge2' as const },
+    { icon: '🗑️', key: 'badge3' as const },
+    { icon: '✅', key: 'badge4' as const },
+  ]
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '60px 20px' }}>
       {/* Hero */}
       <div style={{ textAlign: 'center', marginBottom: 48 }}>
         <h1 style={{ fontSize: 36, fontWeight: 700, color: '#111', margin: '0 0 12px', letterSpacing: -0.5 }}>
-          去除照片中的指定人物
+          {t('heroTitle')}
         </h1>
         <p style={{ fontSize: 17, color: '#666', margin: 0, lineHeight: 1.6 }}>
-          AI 自动识别所有人物 · 点击选择要去除的人 · 背景像素完全保留
+          {t('heroSubtitle')}
         </p>
       </div>
 
@@ -58,11 +67,10 @@ export default function UploadZone({ onUpload, loading }: Props) {
               animation: 'spin 0.8s linear infinite',
             }} />
             <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
-            <p style={{ color: '#555', fontWeight: 600, fontSize: 16, margin: 0 }}>正在检测人物，请稍候…</p>
+            <p style={{ color: '#555', fontWeight: 600, fontSize: 16, margin: 0 }}>{t('processing')}</p>
           </>
         ) : (
           <>
-            {/* Icon */}
             <div style={{
               width: 72, height: 72,
               background: 'linear-gradient(135deg, #2563eb, #4f46e5)',
@@ -78,9 +86,9 @@ export default function UploadZone({ onUpload, loading }: Props) {
 
             <div style={{ textAlign: 'center' }}>
               <p style={{ fontSize: 17, fontWeight: 600, color: '#222', margin: '0 0 4px' }}>
-                拖拽图片到这里
+                {t('dropHere')}
               </p>
-              <p style={{ fontSize: 14, color: '#999', margin: 0 }}>支持 JPG、PNG、WebP</p>
+              <p style={{ fontSize: 14, color: '#999', margin: 0 }}>{t('supportedFormats')}</p>
             </div>
 
             <button
@@ -99,7 +107,7 @@ export default function UploadZone({ onUpload, loading }: Props) {
                 letterSpacing: 0.2,
               }}
             >
-              选择图片
+              {t('chooseImage')}
             </button>
           </>
         )}
@@ -107,13 +115,8 @@ export default function UploadZone({ onUpload, loading }: Props) {
 
       {/* Trust badges */}
       <div style={{ display: 'flex', gap: 12, marginTop: 32, flexWrap: 'wrap', justifyContent: 'center' }}>
-        {[
-          { icon: '🔒', text: '图片不上传服务器' },
-          { icon: '⚡', text: '本地 AI 处理' },
-          { icon: '🗑️', text: '处理后立即销毁' },
-          { icon: '✅', text: '背景像素零修改' },
-        ].map(b => (
-          <div key={b.text} style={{
+        {badges.map(b => (
+          <div key={b.key} style={{
             display: 'flex', alignItems: 'center', gap: 6,
             padding: '8px 16px',
             background: '#fff',
@@ -124,7 +127,7 @@ export default function UploadZone({ onUpload, loading }: Props) {
             boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
           }}>
             <span>{b.icon}</span>
-            <span>{b.text}</span>
+            <span>{t(b.key)}</span>
           </div>
         ))}
       </div>
