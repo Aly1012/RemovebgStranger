@@ -227,7 +227,7 @@ export default function PricingPage() {
       }}>
         <Link href="/" style={{ textDecoration: 'none' }}>
           <span style={{ fontWeight: 800, fontSize: 18, color: '#1a1a1a' }}>
-            🧹 NoBG<span style={{ color: '#2563eb' }}>Stranger</span>
+            🧹 Removebg<span style={{ color: '#2563eb' }}>Stranger</span>
           </span>
         </Link>
         <div style={{ display: 'flex', gap: 8 }}>
@@ -590,7 +590,7 @@ export default function PricingPage() {
         textAlign: 'center', padding: '24px', fontSize: 12, color: '#aaa',
         borderTop: '1px solid #e5e7eb', background: '#fff',
       }}>
-        © 2025 NoBGStranger · <a href="mailto:support@nobgstranger.cn" style={{ color: '#aaa' }}>support@nobgstranger.cn</a>
+        © 2025 RemovebgStranger · <a href="mailto:support@nobgstranger.cn" style={{ color: '#aaa' }}>support@nobgstranger.cn</a>
       </footer>
     </div>
   )

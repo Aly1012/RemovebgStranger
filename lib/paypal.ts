@@ -42,9 +42,9 @@ export async function getPayPalToken(): Promise<string> {
 
 // ── 积分包定义（与前端/定价页保持一致）────────────────
 export const CREDIT_PACKS = [
-  { credits: 20,  price: '2.90',  description: '20 Credits - NoBGStranger' },
-  { credits: 80,  price: '7.90',  description: '80 Credits - NoBGStranger' },
-  { credits: 200, price: '14.90', description: '200 Credits - NoBGStranger' },
+  { credits: 20,  price: '2.90',  description: '20 Credits - RemovebgStranger' },
+  { credits: 80,  price: '7.90',  description: '80 Credits - RemovebgStranger' },
+  { credits: 200, price: '14.90', description: '200 Credits - RemovebgStranger' },
 ] as const
 
 export type CreditPackCredits = typeof CREDIT_PACKS[number]['credits']
@@ -83,7 +83,7 @@ export async function createOrder(credits: CreditPackCredits, userId: string): P
         },
       ],
       application_context: {
-        brand_name: 'NoBGStranger',
+        brand_name: 'RemovebgStranger',
         landing_page: 'NO_PREFERENCE',
         user_action: 'PAY_NOW',
         return_url: returnUrl,
@@ -178,7 +178,7 @@ export async function createSubscription(planKey: SubscriptionPlanKey, userId: s
       plan_id: plan.planId,
       custom_id: `${userId}|${planKey}`,  // 回调时识别用户 + 套餐
       application_context: {
-        brand_name: 'NoBGStranger',
+        brand_name: 'RemovebgStranger',
         landing_page: 'LOGIN',
         user_action: 'SUBSCRIBE_NOW',
         return_url: returnUrl,
