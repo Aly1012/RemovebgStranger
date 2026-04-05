@@ -47,7 +47,7 @@ export async function GET(req: NextRequest) {
       console.log(`[PayPal] ✅ ${userId} subscribed to ${planKey} (${subscriptionId})`)
     }
 
-    return NextResponse.redirect(new URL(`/pricing?success=subscribed&plan=${planKey}`, req.url))
+    return NextResponse.redirect(new URL(`/payment-success?type=subscription&plan=${planKey}`, req.url))
   } catch (e) {
     console.error('[PayPal] subscription-return error:', e)
     return NextResponse.redirect(new URL('/pricing?error=server_error', req.url))

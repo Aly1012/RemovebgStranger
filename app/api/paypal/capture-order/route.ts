@@ -48,7 +48,14 @@ export async function GET(req: NextRequest) {
       console.log(`[PayPal] ✅ ${userId} bought ${creditsToAdd} credits ($${result.amount})`)
     }
 
-    return NextResponse.redirect(new URL(`/pricing?success=credits&added=${creditsToAdd}`, req.url))
+    // 查询最新余额
+    const user = db.prepare('SELECT credits FROM users WHERE id = ?').get(userId) as any
+    const newBalance = user?.credits ?? creditsToAdd
+
+    return NextResponse.redirect(new URL(
+      `/payment-success?type=credits&added=${creditsToAdd}&balance=${newBalance}`,
+      req.url
+    ))
   } catch (e) {
     console.error('[PayPal] capture GET error:', e)
     return NextResponse.redirect(new URL('/pricing?error=server_error', req.url))
