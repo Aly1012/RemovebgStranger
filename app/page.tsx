@@ -1,6 +1,7 @@
 'use client'
 import { useState, useCallback } from 'react'
 import { useSession } from 'next-auth/react'
+import Link from 'next/link'
 import UploadZone from '@/components/UploadZone'
 import ImageEditor from '@/components/ImageEditor'
 import ResultPanel from '@/components/ResultPanel'
@@ -197,6 +198,20 @@ export default function Home() {
                 {l === 'zh' ? '中文' : 'EN'}
               </button>
             ))}
+
+            <div style={{ width: 1, height: 20, background: '#e5e7eb', margin: '0 4px' }} />
+
+            {/* 定价页入口 */}
+            <Link href="/pricing" style={{
+              fontSize: 13, fontWeight: 600, color: '#555',
+              textDecoration: 'none', padding: '5px 10px',
+              borderRadius: 8, transition: 'background 0.15s',
+            }}
+              onMouseEnter={e => (e.currentTarget.style.background = '#f1f5f9')}
+              onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+            >
+              {locale === 'zh' ? '定价' : 'Pricing'}
+            </Link>
 
             <div style={{ width: 1, height: 20, background: '#e5e7eb', margin: '0 4px' }} />
 
