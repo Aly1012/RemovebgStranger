@@ -54,37 +54,39 @@ export function getCreditPack(credits: CreditPackCredits) {
 }
 
 // ── 创建 Order（积分包一次性付款）───────────────────────
-export async function createOrder(credits: CreditPackCredits): Promise<{ id: string }> {
+export async function createOrder(credits: CreditPackCredits): Promise<{
+  id: string
+  approveUrl: string
+}> {
   const pack = getCreditPack(credits)
   if (!pack) throw new Error(`Invalid credit pack: ${credits}`)
 
   const token = await getPayPalToken()
+  const returnUrl = `${process.env.NEXTAUTH_URL}/api/paypal/capture-order?credits=${credits}`
+  const cancelUrl = `${process.env.NEXTAUTH_URL}/pricing`
 
   const res = await fetch(`${BASE_URL}/v2/checkout/orders`, {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${token}`,
       'Content-Type': 'application/json',
-      'PayPal-Request-Id': `credits-${credits}-${Date.now()}`, // 幂等 key
+      'PayPal-Request-Id': `credits-${credits}-${Date.now()}`,
     },
     body: JSON.stringify({
       intent: 'CAPTURE',
       purchase_units: [
         {
-          amount: {
-            currency_code: 'USD',
-            value: pack.price,
-          },
+          amount: { currency_code: 'USD', value: pack.price },
           description: pack.description,
-          custom_id: String(credits), // 用于 capture 时识别积分数量
+          custom_id: String(credits),
         },
       ],
       application_context: {
         brand_name: 'NoBGStranger',
         landing_page: 'NO_PREFERENCE',
         user_action: 'PAY_NOW',
-        return_url: `${process.env.NEXTAUTH_URL}/api/paypal/capture-order`,
-        cancel_url: `${process.env.NEXTAUTH_URL}/pricing`,
+        return_url: returnUrl,
+        cancel_url: cancelUrl,
       },
     }),
   })
@@ -94,7 +96,11 @@ export async function createOrder(credits: CreditPackCredits): Promise<{ id: str
     throw new Error(`PayPal createOrder error: ${err}`)
   }
 
-  return res.json()
+  const data = await res.json()
+  const approveUrl = data.links?.find((l: any) => l.rel === 'approve')?.href
+  if (!approveUrl) throw new Error('No approve link in PayPal response')
+
+  return { id: data.id, approveUrl }
 }
 
 // ── Capture Order（确认付款）─────────────────────────

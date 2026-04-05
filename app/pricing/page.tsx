@@ -160,16 +160,24 @@ function PayPalReturnHandler({ onMsg }: { onMsg: (msg: string) => void }) {
   useEffect(() => {
     const success = searchParams.get('success')
     const plan = searchParams.get('plan')
+    const added = searchParams.get('added')
     const error = searchParams.get('error')
+
     if (success === 'subscribed' && plan) {
       const label = plan === 'pro_plus' ? 'Pro+' : 'Pro'
       onMsg(`🎉 Welcome to ${label}! Your subscription is now active.`)
       router.replace('/pricing')
+    } else if (success === 'credits' && added) {
+      onMsg(`🎉 ${added} credits added to your account!`)
+      router.replace('/pricing')
     } else if (error) {
       const msg: Record<string, string> = {
+        missing_order: '⚠️ Payment error: missing order info.',
         missing_params: '⚠️ Payment error: missing parameters.',
         not_logged_in: '⚠️ Please sign in first.',
         not_active: '⚠️ Subscription not activated, please try again.',
+        not_completed: '⚠️ Payment not completed.',
+        invalid_credits: '⚠️ Invalid credits amount.',
         server_error: '⚠️ Server error, please contact support.',
       }
       onMsg(msg[error] || `⚠️ ${error}`)
