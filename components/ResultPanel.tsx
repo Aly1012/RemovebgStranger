@@ -5,9 +5,10 @@ interface Props {
   originalUrl: string
   resultUrl: string
   onReset: () => void
+  onRefine: () => void
 }
 
-export default function ResultPanel({ originalUrl, resultUrl, onReset }: Props) {
+export default function ResultPanel({ originalUrl, resultUrl, onReset, onRefine }: Props) {
   const { t } = useLang()
 
   const handleDownload = () => {
@@ -117,6 +118,22 @@ export default function ResultPanel({ originalUrl, resultUrl, onReset }: Props) 
           }}
         >
           {t('processNew')}
+        </button>
+        <button
+          onClick={onRefine}
+          style={{
+            padding: '11px 22px',
+            borderRadius: 12,
+            border: '1.5px solid #7c3aed',
+            background: '#fff',
+            color: '#7c3aed',
+            fontSize: 14,
+            fontWeight: 600,
+            cursor: 'pointer',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+          }}
+        >
+          {t('refineAgain')}
         </button>
         <button
           onClick={handleDownload}

@@ -35,6 +35,7 @@ export const translations = {
     resultLabel: '处理结果',
     tipText: 'AI 智能修复背景，人物区域由周围场景像素填充，下载即用',
     processNew: '处理新图片',
+    refineAgain: '🖌️ 继续修复',
     downloadPng: '下载 PNG',
 
     // Footer
@@ -77,6 +78,7 @@ export const translations = {
     resultLabel: 'Result',
     tipText: 'AI intelligently fills the background using surrounding pixels. Ready to download.',
     processNew: 'Process New Photo',
+    refineAgain: '🖌️ Refine Again',
     downloadPng: 'Download PNG',
 
     // Footer

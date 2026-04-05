@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
 import './globals.css'
-import { LangProvider } from '@/lib/LangContext'
+import { Providers } from './providers'
 
 export const metadata: Metadata = {
   title: 'RemovebgStranger — Remove People from Photos',
@@ -9,11 +9,11 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="zh">
+    <html lang="en">
       <body style={{ background: '#f7f8fa', minHeight: '100vh', margin: 0 }}>
-        <LangProvider>
+        <Providers>
           {children}
-        </LangProvider>
+        </Providers>
       </body>
     </html>
   )

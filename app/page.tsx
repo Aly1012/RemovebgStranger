@@ -1,9 +1,13 @@
 'use client'
 import { useState, useCallback } from 'react'
+import { useSession } from 'next-auth/react'
 import UploadZone from '@/components/UploadZone'
 import ImageEditor from '@/components/ImageEditor'
 import ResultPanel from '@/components/ResultPanel'
+import UserMenu from '@/components/UserMenu'
+import UpgradeModal from '@/components/UpgradeModal'
 import { useLang } from '@/lib/LangContext'
+import { useUsage } from '@/lib/useUsage'
 
 export type Stage = 'upload' | 'paint' | 'result'
 
@@ -58,6 +62,10 @@ const S = {
 
 export default function Home() {
   const { locale, setLocale, t } = useLang()
+  const { data: session } = useSession()
+  const { usage, refresh: refreshUsage, updateFromHeaders } = useUsage()
+  const [showUpgrade, setShowUpgrade] = useState(false)
+  const [upgradeReason, setUpgradeReason] = useState<'quota' | 'upgrade'>('upgrade')
   const [stage, setStage] = useState<Stage>('upload')
   const [imageFile, setImageFile] = useState<File | null>(null)
   const [imageUrl, setImageUrl] = useState<string>('')
@@ -82,10 +90,18 @@ export default function Home() {
       form.append('image', imageFile)
       form.append('mask', maskDataUrl)
       const res = await fetch('/api/remove', { method: 'POST', body: form })
+      if (res.status === 429) {
+        setUpgradeReason('quota')
+        setShowUpgrade(true)
+        return
+      }
       if (!res.ok) throw new Error(await res.text())
       const blob = await res.blob()
       setResultUrl(URL.createObjectURL(blob))
       setStage('result')
+      // 优先从响应头更新用量（省去额外 /api/usage 请求）
+      updateFromHeaders(res.headers)
+      refreshUsage()
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : t('processFailed'))
     } finally {
@@ -100,6 +116,22 @@ export default function Home() {
     setResultUrl('')
     setError('')
   }
+
+  const handleRefine = useCallback(async () => {
+    // 把当前结果图作为新的输入图，回到涂抹阶段
+    try {
+      const res = await fetch(resultUrl)
+      const blob = await res.blob()
+      const file = new File([blob], 'refined.png', { type: 'image/png' })
+      setError('')
+      setImageFile(file)
+      setImageUrl(resultUrl)
+      setResultUrl('')
+      setStage('paint')
+    } catch {
+      setError(t('processFailed'))
+    }
+  }, [resultUrl, t])
 
   const steps = [
     { key: 'upload', label: t('step1') },
@@ -144,9 +176,9 @@ export default function Home() {
             ))}
           </div>
 
-          {/* Language switcher */}
-          <div style={{ display: 'flex', gap: 4 }}>
-            {(['zh', 'en'] as const).map(l => (
+          {/* Language switcher + Auth */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            {(['en', 'zh'] as const).map(l => (
               <button
                 key={l}
                 onClick={() => setLocale(l)}
@@ -165,6 +197,13 @@ export default function Home() {
                 {l === 'zh' ? '中文' : 'EN'}
               </button>
             ))}
+
+            <div style={{ width: 1, height: 20, background: '#e5e7eb', margin: '0 4px' }} />
+
+            <UserMenu
+              locale={locale}
+              onUpgrade={() => { setUpgradeReason('upgrade'); setShowUpgrade(true) }}
+            />
           </div>
         </div>
       </header>
@@ -186,7 +225,7 @@ export default function Home() {
             />
           )}
           {stage === 'result' && (
-            <ResultPanel originalUrl={imageUrl} resultUrl={resultUrl} onReset={handleReset} />
+            <ResultPanel originalUrl={imageUrl} resultUrl={resultUrl} onReset={handleReset} onRefine={handleRefine} />
           )}
         </div>
       </div>
@@ -194,6 +233,15 @@ export default function Home() {
       <footer style={S.footer}>
         {t('footerText')}
       </footer>
+
+      {showUpgrade && (
+        <UpgradeModal
+          locale={locale}
+          reason={upgradeReason}
+          plan={usage?.plan ?? 'guest'}
+          onClose={() => setShowUpgrade(false)}
+        />
+      )}
     </div>
   )
 }

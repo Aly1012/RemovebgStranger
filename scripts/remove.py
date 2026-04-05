@@ -47,7 +47,7 @@ def main():
     from iopaint.schema import InpaintRequest, HDStrategy, LDMSampler
 
     device = torch.device("cpu")
-    model_manager = ModelManager(name="lama", device=device)
+    model_manager = ModelManager(name="mat", device=device)
 
     config = InpaintRequest(
         hd_strategy=HDStrategy.CROP,
