@@ -1,6 +1,7 @@
 'use client'
-import { useState } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { useSession, signIn } from 'next-auth/react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import BuyCreditsButton from '@/components/BuyCreditsButton'
 
@@ -151,17 +152,60 @@ const FAQ = [
   },
 ]
 
+// ── PayPal 回调参数处理（需要 Suspense 包裹）─────────
+function PayPalReturnHandler({ onMsg }: { onMsg: (msg: string) => void }) {
+  const router = useRouter()
+  const searchParams = useSearchParams()
+
+  useEffect(() => {
+    const success = searchParams.get('success')
+    const plan = searchParams.get('plan')
+    const error = searchParams.get('error')
+    if (success === 'subscribed' && plan) {
+      const label = plan === 'pro_plus' ? 'Pro+' : 'Pro'
+      onMsg(`🎉 Welcome to ${label}! Your subscription is now active.`)
+      router.replace('/pricing')
+    } else if (error) {
+      const msg: Record<string, string> = {
+        missing_params: '⚠️ Payment error: missing parameters.',
+        not_logged_in: '⚠️ Please sign in first.',
+        not_active: '⚠️ Subscription not activated, please try again.',
+        server_error: '⚠️ Server error, please contact support.',
+      }
+      onMsg(msg[error] || `⚠️ ${error}`)
+      router.replace('/pricing')
+    }
+  }, [searchParams])
+
+  return null
+}
+
 // ── 主组件 ────────────────────────────────────────────
 export default function PricingPage() {
   const { locale, setLocale, t } = useLang()
   const { data: session } = useSession()
   const [openFaq, setOpenFaq] = useState<number | null>(null)
-  const [successMsg, setSuccessMsg] = useState('')   // 购买成功提示
+  const [successMsg, setSuccessMsg] = useState('')
+  const [subLoading, setSubLoading] = useState<string | null>(null)
 
-  const handleSubscribe = (planKey: string) => {
+  const handleSubscribe = async (planKey: string) => {
     if (!session) { signIn('google'); return }
-    // TODO: 接入 PayPal 订阅
-    alert(`PayPal subscription for ${planKey} — coming soon!`)
+    setSubLoading(planKey)
+    try {
+      const res = await fetch('/api/paypal/create-subscription', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ plan: planKey }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed')
+      // 跳转到 PayPal 订阅确认页
+      window.location.href = data.approveUrl
+    } catch (e) {
+      setSubLoading(null)
+      setSuccessMsg('⚠️ ' + (e instanceof Error ? e.message : 'Failed to start subscription'))
+      setTimeout(() => setSuccessMsg(''), 6000)
+    }
   }
 
   return (
@@ -200,7 +244,15 @@ export default function PricingPage() {
         </div>
       </nav>
 
-      {/* ── 购买成功 Toast ── */}
+      {/* PayPal 回调处理（Suspense 包裹，避免 SSR 报错） */}
+      <Suspense fallback={null}>
+        <PayPalReturnHandler onMsg={(msg) => {
+          setSuccessMsg(msg)
+          setTimeout(() => setSuccessMsg(''), 8000)
+        }} />
+      </Suspense>
+
+      {/* ── Toast 提示 ── */}
       {successMsg && (
         <div style={{
           position: 'fixed', top: 20, left: '50%', transform: 'translateX(-50%)',
@@ -312,22 +364,24 @@ export default function PricingPage() {
               ) : (
                 <button
                   onClick={() => handleSubscribe(plan.key)}
+                  disabled={subLoading === plan.key}
                   style={{
                     width: '100%', padding: '12px 0', borderRadius: 10,
                     border: 'none',
                     background: plan.highlight
                       ? 'linear-gradient(135deg, #2563eb, #1d4ed8)'
                       : 'linear-gradient(135deg, #7c3aed, #5b21b6)',
-                    color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer',
+                    color: '#fff', fontSize: 14, fontWeight: 700,
+                    cursor: subLoading === plan.key ? 'not-allowed' : 'pointer',
+                    opacity: subLoading === plan.key ? 0.7 : 1,
                     boxShadow: plan.highlight ? '0 4px 14px rgba(37,99,235,0.35)' : 'none',
                     transition: 'opacity 0.2s',
                   }}
-                  onMouseEnter={e => (e.currentTarget.style.opacity = '0.9')}
-                  onMouseLeave={e => (e.currentTarget.style.opacity = '1')}
                 >
-                  {/* PayPal 图标 */}
-                  <span style={{ marginRight: 6, fontSize: 13 }}>🅿</span>
-                  {t(plan.cta, plan.ctaZh)}
+                  {subLoading === plan.key
+                    ? (t('Redirecting to PayPal...', '跳转 PayPal 中...'))
+                    : (<><span style={{ marginRight: 6, fontSize: 13 }}>🅿</span>{t(plan.cta, plan.ctaZh)}</>)
+                  }
                 </button>
               )}
             </div>

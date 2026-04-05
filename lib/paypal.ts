@@ -130,3 +130,76 @@ export async function captureOrder(orderId: string): Promise<{
     amount: capture?.amount?.value ?? '0',
   }
 }
+
+// ── 订阅相关 ─────────────────────────────────────────
+
+export const SUBSCRIPTION_PLANS = {
+  pro:      { planId: process.env.PAYPAL_PLAN_PRO!,      price: '9.90',  label: 'Pro' },
+  pro_plus: { planId: process.env.PAYPAL_PLAN_PRO_PLUS!, price: '19.90', label: 'Pro+' },
+} as const
+
+export type SubscriptionPlanKey = keyof typeof SUBSCRIPTION_PLANS
+
+// 创建订阅（返回 subscription id + approve link）
+export async function createSubscription(planKey: SubscriptionPlanKey, userId: string): Promise<{
+  subscriptionId: string
+  approveUrl: string
+}> {
+  const plan = SUBSCRIPTION_PLANS[planKey]
+  if (!plan?.planId) throw new Error(`Plan ID not configured for ${planKey}`)
+
+  const token = await getPayPalToken()
+  const returnUrl = `${process.env.NEXTAUTH_URL}/api/paypal/subscription-return?plan=${planKey}`
+  const cancelUrl = `${process.env.NEXTAUTH_URL}/pricing`
+
+  const res = await fetch(`${BASE_URL}/v1/billing/subscriptions`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+      'PayPal-Request-Id': `sub-${userId}-${planKey}-${Date.now()}`,
+    },
+    body: JSON.stringify({
+      plan_id: plan.planId,
+      custom_id: `${userId}|${planKey}`,  // 回调时识别用户 + 套餐
+      application_context: {
+        brand_name: 'NoBGStranger',
+        landing_page: 'LOGIN',
+        user_action: 'SUBSCRIBE_NOW',
+        return_url: returnUrl,
+        cancel_url: cancelUrl,
+      },
+    }),
+  })
+
+  if (!res.ok) {
+    const err = await res.text()
+    throw new Error(`PayPal createSubscription error: ${err}`)
+  }
+
+  const data = await res.json()
+  const approveLink = data.links?.find((l: any) => l.rel === 'approve')?.href
+  if (!approveLink) throw new Error('No approve link in PayPal response')
+
+  return { subscriptionId: data.id, approveUrl: approveLink }
+}
+
+// 查询订阅详情
+export async function getSubscription(subscriptionId: string): Promise<{
+  status: string
+  customId: string
+  nextBillingTime: string | null
+}> {
+  const token = await getPayPalToken()
+  const res = await fetch(`${BASE_URL}/v1/billing/subscriptions/${subscriptionId}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok) throw new Error(`PayPal getSubscription error: ${await res.text()}`)
+
+  const data = await res.json()
+  return {
+    status: data.status,
+    customId: data.custom_id ?? '',
+    nextBillingTime: data.billing_info?.next_billing_time ?? null,
+  }
+}
