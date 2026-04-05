@@ -1,33 +1,34 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
 import { captureOrder } from '@/lib/paypal'
 import { getDb } from '@/lib/db'
 
 // ── GET：PayPal 跳转模式回调 ──────────────────────────
-// URL: /api/paypal/capture-order?token=ORDER_ID&credits=20
+// PayPal 跳回：/api/paypal/capture-order?token=ORDER_ID&uid=USER_ID&credits=20
 export async function GET(req: NextRequest) {
   const { searchParams } = req.nextUrl
-  const orderId = searchParams.get('token')   // PayPal 跳转回来时带的 token 就是 order id
-  const credits = searchParams.get('credits')
+  const orderId = searchParams.get('token')   // PayPal 用 token 参数传 order id
+  const userId = searchParams.get('uid')       // 从 return_url 里取，比 custom_id 更可靠
+  const creditsParam = searchParams.get('credits')
+
+  console.log('[PayPal] capture-order GET:', { orderId, userId, creditsParam })
 
   if (!orderId) {
     return NextResponse.redirect(new URL('/pricing?error=missing_order', req.url))
   }
-
-  const session = await getServerSession()
-  const userId = (session?.user as any)?.id
   if (!userId) {
     return NextResponse.redirect(new URL('/pricing?error=not_logged_in', req.url))
   }
 
   try {
     const result = await captureOrder(orderId)
+    console.log('[PayPal] captureOrder result:', result.status, 'customId:', result.customId)
 
     if (result.status !== 'COMPLETED') {
       return NextResponse.redirect(new URL(`/pricing?error=not_completed`, req.url))
     }
 
-    const creditsToAdd = parseInt(result.customId || credits || '0', 10)
+    // 优先从 URL query 取 credits
+    const creditsToAdd = parseInt(creditsParam || result.credits?.toString() || '0', 10)
     if (!creditsToAdd || creditsToAdd <= 0) {
       return NextResponse.redirect(new URL('/pricing?error=invalid_credits', req.url))
     }
@@ -54,14 +55,8 @@ export async function GET(req: NextRequest) {
   }
 }
 
-// ── POST：弹窗模式（保留兼容）────────────────────────
+// ── POST：兼容备用 ─────────────────────────────────────
 export async function POST(req: NextRequest) {
-  const session = await getServerSession()
-  const userId = (session?.user as any)?.id
-  if (!userId) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
-
   const { orderId } = await req.json()
   if (!orderId) {
     return NextResponse.json({ error: 'Missing orderId' }, { status: 400 })
@@ -73,9 +68,9 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: `Payment not completed: ${result.status}` }, { status: 400 })
     }
 
-    const creditsToAdd = parseInt(result.customId, 10)
-    if (!creditsToAdd || creditsToAdd <= 0) {
-      return NextResponse.json({ error: 'Invalid credits in order' }, { status: 400 })
+    const { userId, credits: creditsToAdd } = result
+    if (!userId || !creditsToAdd) {
+      return NextResponse.json({ error: 'Invalid order data' }, { status: 400 })
     }
 
     const db = getDb()
@@ -95,7 +90,6 @@ export async function POST(req: NextRequest) {
     addCredits()
 
     const user = db.prepare('SELECT credits FROM users WHERE id = ?').get(userId) as any
-    console.log(`[PayPal] ✅ ${userId} bought ${creditsToAdd} credits ($${result.amount})`)
     return NextResponse.json({ success: true, creditsAdded: creditsToAdd, credits: user?.credits ?? 0 })
   } catch (e) {
     console.error('[PayPal] captureOrder POST failed:', e)

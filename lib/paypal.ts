@@ -54,7 +54,7 @@ export function getCreditPack(credits: CreditPackCredits) {
 }
 
 // ── 创建 Order（积分包一次性付款）───────────────────────
-export async function createOrder(credits: CreditPackCredits): Promise<{
+export async function createOrder(credits: CreditPackCredits, userId: string): Promise<{
   id: string
   approveUrl: string
 }> {
@@ -62,7 +62,8 @@ export async function createOrder(credits: CreditPackCredits): Promise<{
   if (!pack) throw new Error(`Invalid credit pack: ${credits}`)
 
   const token = await getPayPalToken()
-  const returnUrl = `${process.env.NEXTAUTH_URL}/api/paypal/capture-order?credits=${credits}`
+  // 把 userId 和 credits 写入 return_url query，不依赖 custom_id（沙盒有时不返回）
+  const returnUrl = `${process.env.NEXTAUTH_URL}/api/paypal/capture-order?credits=${credits}&uid=${encodeURIComponent(userId)}`
   const cancelUrl = `${process.env.NEXTAUTH_URL}/pricing`
 
   const res = await fetch(`${BASE_URL}/v2/checkout/orders`, {
@@ -78,7 +79,7 @@ export async function createOrder(credits: CreditPackCredits): Promise<{
         {
           amount: { currency_code: 'USD', value: pack.price },
           description: pack.description,
-          custom_id: String(credits),
+          custom_id: `${userId}|${credits}`,  // userId|credits，回调时解析
         },
       ],
       application_context: {
@@ -106,7 +107,9 @@ export async function createOrder(credits: CreditPackCredits): Promise<{
 // ── Capture Order（确认付款）─────────────────────────
 export async function captureOrder(orderId: string): Promise<{
   status: string
-  customId: string   // 积分数量
+  customId: string   // 格式：userId|credits
+  userId: string
+  credits: number
   payerEmail: string
   amount: string
 }> {
@@ -128,10 +131,16 @@ export async function captureOrder(orderId: string): Promise<{
   const data = await res.json()
   const unit = data.purchase_units?.[0]
   const capture = unit?.payments?.captures?.[0]
+  const customId: string = unit?.custom_id ?? ''
+
+  // 解析 custom_id：userId|credits
+  const [parsedUserId, parsedCredits] = customId.split('|')
 
   return {
     status: data.status,
-    customId: unit?.custom_id ?? '',
+    customId,
+    userId: parsedUserId ?? '',
+    credits: parseInt(parsedCredits ?? '0', 10),
     payerEmail: data.payer?.email_address ?? '',
     amount: capture?.amount?.value ?? '0',
   }
