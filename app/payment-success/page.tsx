@@ -103,7 +103,7 @@ function PaymentSuccessContent() {
           onMouseEnter={e => (e.currentTarget.style.opacity = '0.9')}
           onMouseLeave={e => (e.currentTarget.style.opacity = '1')}
         >
-          Start Removing Backgrounds →
+          Start Removing Background Strangers →
         </Link>
 
         {/* 次级链接 */}
