@@ -2,6 +2,7 @@
 import { useState } from 'react'
 import { useSession, signIn } from 'next-auth/react'
 import Link from 'next/link'
+import BuyCreditsButton from '@/components/BuyCreditsButton'
 
 // ── 翻译 ──────────────────────────────────────────────
 type Locale = 'en' | 'zh'
@@ -155,17 +156,12 @@ export default function PricingPage() {
   const { locale, setLocale, t } = useLang()
   const { data: session } = useSession()
   const [openFaq, setOpenFaq] = useState<number | null>(null)
+  const [successMsg, setSuccessMsg] = useState('')   // 购买成功提示
 
   const handleSubscribe = (planKey: string) => {
     if (!session) { signIn('google'); return }
     // TODO: 接入 PayPal 订阅
     alert(`PayPal subscription for ${planKey} — coming soon!`)
-  }
-
-  const handleBuyCredits = (credits: number, price: string) => {
-    if (!session) { signIn('google'); return }
-    // TODO: 接入 PayPal 一次性付款
-    alert(`PayPal payment for ${credits} credits (${price}) — coming soon!`)
   }
 
   return (
@@ -203,6 +199,20 @@ export default function PricingPage() {
           >中文</button>
         </div>
       </nav>
+
+      {/* ── 购买成功 Toast ── */}
+      {successMsg && (
+        <div style={{
+          position: 'fixed', top: 20, left: '50%', transform: 'translateX(-50%)',
+          background: '#052e16', color: '#bbf7d0',
+          padding: '14px 24px', borderRadius: 12,
+          fontSize: 14, fontWeight: 600, zIndex: 9999,
+          boxShadow: '0 8px 30px rgba(0,0,0,0.2)',
+          animation: 'fadeIn 0.3s ease',
+        }}>
+          {successMsg}
+        </div>
+      )}
 
       <div style={{ maxWidth: 1000, margin: '0 auto', padding: '48px 24px 80px' }}>
 
@@ -379,25 +389,34 @@ export default function PricingPage() {
                   {t(pack.desc, pack.descZh)}
                 </div>
 
-                <button
-                  onClick={() => handleBuyCredits(pack.credits, pack.price)}
-                  style={{
-                    width: '100%', padding: '10px 0', borderRadius: 8,
-                    border: 'none',
-                    background: pack.badge === 'Popular'
-                      ? 'linear-gradient(135deg, #f59e0b, #d97706)'
-                      : pack.badge === 'Best Value'
-                        ? 'linear-gradient(135deg, #7c3aed, #5b21b6)'
-                        : '#1a1a1a',
-                    color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer',
-                    transition: 'opacity 0.2s',
-                  }}
-                  onMouseEnter={e => (e.currentTarget.style.opacity = '0.85')}
-                  onMouseLeave={e => (e.currentTarget.style.opacity = '1')}
-                >
-                  <span style={{ marginRight: 5, fontSize: 12 }}>🅿</span>
-                  {t('Buy Now', '立即购买')}
-                </button>
+                {/* 已登录：PayPal 真实按钮；未登录：引导登录 */}
+                {session ? (
+                  <BuyCreditsButton
+                    credits={pack.credits as 20 | 80 | 200}
+                    price={pack.price}
+                    locale={locale}
+                    onSuccess={(added, total) => {
+                      setSuccessMsg(
+                        t(
+                          `🎉 ${added} credits added! You now have ${total} credits.`,
+                          `🎉 已添加 ${added} 积分！当前共 ${total} 积分。`
+                        )
+                      )
+                      setTimeout(() => setSuccessMsg(''), 6000)
+                    }}
+                  />
+                ) : (
+                  <button
+                    onClick={() => signIn('google')}
+                    style={{
+                      width: '100%', padding: '10px 0', borderRadius: 8,
+                      border: 'none', background: '#1a1a1a',
+                      color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer',
+                    }}
+                  >
+                    {t('Sign in to buy', '登录后购买')}
+                  </button>
+                )}
               </div>
             ))}
           </div>

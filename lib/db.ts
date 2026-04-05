@@ -38,5 +38,18 @@ function initSchema(db: Database.Database) {
 
     CREATE INDEX IF NOT EXISTS idx_usage_user ON usage_logs(user_id, created_at);
     CREATE INDEX IF NOT EXISTS idx_usage_ip   ON usage_logs(ip, created_at);
+
+    CREATE TABLE IF NOT EXISTS payment_logs (
+      id               INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id          TEXT NOT NULL,
+      paypal_order_id  TEXT UNIQUE NOT NULL,
+      type             TEXT NOT NULL DEFAULT 'credits',  -- 'credits' | 'subscription'
+      credits          INTEGER,
+      amount_usd       TEXT,
+      payer_email      TEXT,
+      created_at       INTEGER NOT NULL DEFAULT (unixepoch())
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_payment_user ON payment_logs(user_id, created_at);
   `)
 }
