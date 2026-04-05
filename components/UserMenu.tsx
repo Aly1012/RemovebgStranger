@@ -38,34 +38,50 @@ export default function UserMenu({ locale, onUpgrade }: Props) {
   const isProPlus = usage?.plan === 'pro_plus'
   const isPro = usage?.plan === 'pro'
   const isFree = !isPro && !isProPlus
-  const usedPct = usage && usage.limit > 0 ? Math.min((usage.used / usage.limit) * 100, 100) : 0
-  const monthRemaining = usage ? (usage.limit === -1 ? '∞' : Math.max(usage.limit - usage.used, 0)) : '...'
   const credits = usage?.credits ?? 0
-  // 显示月度剩余 + 积分（如有）
-  const remainingLabel = usage?.limit === -1
-    ? '∞'
-    : credits > 0
-      ? `${monthRemaining}+${credits}`
-      : `${monthRemaining}`
+  const monthRemaining = usage
+    ? (usage.limit === -1 ? null : Math.max(usage.limit - usage.used, 0))
+    : null
+  const usedPct = usage && usage.limit > 0
+    ? Math.min((usage.used / usage.limit) * 100, 100)
+    : 0
 
   const planLabel = isProPlus ? 'Pro+' : isPro ? 'Pro' : 'Free'
   const planColor = isProPlus ? '#7c3aed' : isPro ? '#2563eb' : '#6b7280'
 
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-      {/* 用量条 */}
+      {/* 用量信息 */}
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 2 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+
+        {/* 第一行：套餐标签 + 月度剩余 */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
           <span style={{
             fontSize: 11, fontWeight: 700, color: '#fff',
             background: planColor, borderRadius: 4, padding: '1px 6px',
           }}>{planLabel}</span>
           <span style={{ fontSize: 12, color: '#888' }}>
-            {t(`${remainingLabel} left`, `剩余 ${remainingLabel} 次`)}
+            {isProPlus
+              ? t('Unlimited', '无限次')
+              : monthRemaining === null
+                ? '...'
+                : t(`${monthRemaining}/mo left`, `月度剩余 ${monthRemaining} 次`)}
           </span>
         </div>
-        {usage && usage.limit > 0 && (
-          <div style={{ width: 80, height: 4, background: '#e5e7eb', borderRadius: 2 }}>
+
+        {/* 第二行：积分（仅有积分时显示） */}
+        {credits > 0 && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+            <span style={{ fontSize: 10, color: '#f59e0b' }}>✦</span>
+            <span style={{ fontSize: 11, color: '#b45309', fontWeight: 600 }}>
+              {t(`${credits} credits`, `${credits} 积分`)}
+            </span>
+          </div>
+        )}
+
+        {/* 月度进度条（Pro+ 不显示） */}
+        {!isProPlus && usage && usage.limit > 0 && (
+          <div style={{ width: 80, height: 3, background: '#e5e7eb', borderRadius: 2 }}>
             <div style={{
               width: `${usedPct}%`, height: '100%',
               background: usedPct >= 100 ? '#ef4444' : usedPct >= 75 ? '#f59e0b' : '#2563eb',
