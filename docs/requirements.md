@@ -1,6 +1,6 @@
 # 需求文档 — RemovebgStranger（AI 涂抹去除人物 · 智能背景修复）
 
-> 最后更新：2026-04-07（第四次更新）
+> 最后更新：2026-04-12（第五次更新）
 
 ---
 
@@ -195,6 +195,7 @@ npm run build                           # 重新构建
 - （可选）后台管理页面
 - （可选）用户处理历史记录
 - （可选）批量处理功能（Pro+ 预留入口）
+- （可选）Cookie 同意横幅（GDPR，面向欧盟用户，暂缓）
 
 ---
 
@@ -216,3 +217,4 @@ npm run build                           # 重新构建
 | 2026-04-02 | 域名上线 nobgstranger.cn；生产模式部署；Google OAuth；SQLite 数据库；完整限额体系；注册送3积分；Header 用量进度条；超限升级弹窗 |
 | 2026-04-05 | 重构用量控制系统（修复积分bug）；新增 /pricing 定价页；PayPal 沙盒支付接入（积分包+月订阅）；新增 /payment-success 支付成功页；品牌名统一为 RemovebgStranger |
 | 2026-04-07 | 未登录改为不可用（弹登录引导）；Free 配额 5→3次/月；注册引导文案"共6次起步"；PayPal 切换生产环境；PayPal Webhook 实现（续费/取消/到期）；Google OAuth 发布（In production）；新增 /faq 独立FAQ页（4组17问双语）；主页和定价页 Header 加 FAQ 入口 |
+| 2026-04-12 | 新增 sitemap.xml（app/sitemap.ts，含 /、/pricing、/faq）；提交至 Google Search Console；集成 Google Analytics G-CG41T77GDB（app/layout.tsx，next/script）；Consent Mode 暂缓 |
